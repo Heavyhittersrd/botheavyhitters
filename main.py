@@ -3,8 +3,8 @@ import logging
 import threading
 import requests as req
 from flask import Flask, request, Response
-from twilio.rest import Client as TwilioClient
-from twilio.twiml.voice_response import VoiceResponse, Gather
+from signalwire.rest import Client as SignalWireClient
+from signalwire.voice_response import VoiceResponse, Gather
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
@@ -13,21 +13,24 @@ from telegram.ext import (
 
 # ─── CONFIGURACIÓN ────────────────────────────────────────────────────────────
 TELEGRAM_TOKEN   = os.environ["TELEGRAM_TOKEN"]
-TWILIO_SID       = os.environ["TWILIO_SID"]
-TWILIO_AUTH      = os.environ["TWILIO_AUTH"]
-TWILIO_NUMBER    = os.environ["TWILIO_NUMBER"]
+SW_PROJECT_ID    = os.environ["SW_PROJECT_ID"]
+SW_AUTH_TOKEN    = os.environ["SW_AUTH_TOKEN"]
+SW_SPACE_URL     = os.environ["SW_SPACE_URL"]
+SW_NUMBER        = os.environ["SW_NUMBER"]
 WEBHOOK_BASE_URL = os.environ["WEBHOOK_BASE_URL"]
 ADMIN_CHAT_ID    = int(os.environ.get("ADMIN_CHAT_ID", "0"))
 
-tw_client = TwilioClient(TWILIO_SID, TWILIO_AUTH)
+sw_client = SignalWireClient(
+    SW_PROJECT_ID,
+    SW_AUTH_TOKEN,
+    signalwire_space_url=SW_SPACE_URL
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-# ─── SESIONES EN MEMORIA ──────────────────────────────────────────────────────
 call_sessions: dict = {}
 
-# ─── MENSAJES IVR ─────────────────────────────────────────────────────────────
 IVR_MENSAJES = {
     "cobrar": (
         "Hola, le llamamos de parte de nuestra empresa. "
@@ -84,7 +87,6 @@ IVR_RESPUESTA_CLIENTE = {
     },
 }
 
-# ─── FLASK ────────────────────────────────────────────────────────────────────
 flask_app = Flask(__name__)
 
 def notify_telegram(chat_id: int, texto: str):
@@ -160,8 +162,6 @@ def call_status():
         notify_telegram(chat_id, f"📞 *Estado de llamada*\n📱 `{to_number}`\n{iconos[status]}")
     return "", 204
 
-# ─── TELEGRAM BOT ─────────────────────────────────────────────────────────────
-
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 *Bot de Llamadas Automatizadas*\n"
@@ -232,9 +232,9 @@ async def hacer_llamada(update: Update, chat_id: int, numero: str, accion: str):
             f"📞 Llamando a `{numero}`\n🎯 Acción: *{accion.upper()}*\n⏳ Espera...",
             parse_mode="Markdown",
         )
-        call = tw_client.calls.create(
+        call = sw_client.calls.create(
             to=numero,
-            from_=TWILIO_NUMBER,
+            from_=SW_NUMBER,
             url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
             status_callback=f"{WEBHOOK_BASE_URL}/status",
             status_callback_method="POST",
@@ -248,8 +248,6 @@ async def hacer_llamada(update: Update, chat_id: int, numero: str, accion: str):
     except Exception as e:
         log.error(f"Error al llamar: {e}")
         await update.message.reply_text(f"❌ Error:\n`{e}`", parse_mode="Markdown")
-
-# ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 def run_flask():
     port = int(os.environ.get("PORT", 8080))
