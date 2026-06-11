@@ -238,7 +238,6 @@ async def hacer_llamada(update: Update, chat_id: int, numero: str, accion: str):
             url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
             status_callback=f"{WEBHOOK_BASE_URL}/status",
             status_callback_method="POST",
-            status_callback_event=["no-answer", "busy", "failed", "completed", "canceled"],
         )
         call_sessions[call.sid] = {"chat_id": chat_id, "phone": numero, "accion": accion}
         await update.message.reply_text(
