@@ -2,6 +2,10 @@ import os
 import logging
 import threading
 import requests as req
+import sqlite3
+import secrets
+import string
+from datetime import datetime, timedelta
 from flask import Flask, request, Response
 from signalwire.rest import Client as SignalWireClient
 from signalwire.voice_response import VoiceResponse, Gather
@@ -21,9 +25,62 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 call_sessions = {}
 
-# usuarios activos en memoria (temporal, sin base de datos)
-# { chat_id: True }
-usuarios_activos = set()
+# ─── BASE DE DATOS ─────────────────────────────────────────────────────────────
+def init_db():
+    conn = sqlite3.connect("/app/bot.db")
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS keys (
+        key TEXT PRIMARY KEY, plan TEXT, days INTEGER, created_at TEXT,
+        redeemed_by INTEGER DEFAULT NULL, expires_at TEXT DEFAULT NULL)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
+        chat_id INTEGER PRIMARY KEY, plan TEXT, expires_at TEXT)""")
+    conn.commit()
+    conn.close()
+
+def get_db():
+    conn = sqlite3.connect("/app/bot.db")
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def is_active(chat_id: int) -> bool:
+    if chat_id == ADMIN_CHAT_ID:
+        return True
+    conn = get_db()
+    row = conn.cursor().execute("SELECT expires_at FROM users WHERE chat_id = ?", (chat_id,)).fetchone()
+    conn.close()
+    if not row:
+        return False
+    return datetime.now() < datetime.fromisoformat(row["expires_at"])
+
+def generate_key(plan: str, days: int) -> str:
+    chars = string.ascii_uppercase + string.digits
+    r = ''.join(secrets.choice(chars) for _ in range(12))
+    key = f"HVY-{r[:4]}-{r[4:8]}-{r[8:12]}"
+    conn = get_db()
+    conn.cursor().execute("INSERT INTO keys (key, plan, days, created_at) VALUES (?, ?, ?, ?)",
+        (key, plan, days, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+    return key
+
+def redeem_key(key: str, chat_id: int):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT * FROM keys WHERE key = ?", (key,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return None, "❌ Key inválida."
+    if row["redeemed_by"]:
+        conn.close()
+        return None, "❌ Esta key ya fue usada."
+    expires_at = (datetime.now() + timedelta(days=row["days"])).isoformat()
+    c.execute("UPDATE keys SET redeemed_by=?, expires_at=? WHERE key=?", (chat_id, expires_at, key))
+    c.execute("INSERT INTO users (chat_id, plan, expires_at) VALUES (?, ?, ?) ON CONFLICT(chat_id) DO UPDATE SET plan=?, expires_at=?",
+        (chat_id, row["plan"], expires_at, row["plan"], expires_at))
+    conn.commit()
+    conn.close()
+    return {"plan": row["plan"], "days": row["days"], "expires_at": expires_at}, None
 
 IVR_MENSAJES = {
     "cobrar": "Hola, le llamamos de parte de nuestra empresa. Usted tiene una factura pendiente. Si desea pagar ahora marque 1. Para hablar con un agente marque 2. Para escuchar el monto marque 3.",
@@ -102,8 +159,15 @@ def menu_con_key():
         [KeyboardButton("🛒 Comprar Plan"), KeyboardButton("📞 Soporte")],
     ], resize_keyboard=True)
 
-def is_active(chat_id):
-    return chat_id == ADMIN_CHAT_ID or chat_id in usuarios_activos
+def is_active(chat_id: int) -> bool:
+    if chat_id == ADMIN_CHAT_ID:
+        return True
+    conn = get_db()
+    row = conn.cursor().execute("SELECT expires_at FROM users WHERE chat_id = ?", (chat_id,)).fetchone()
+    conn.close()
+    if not row:
+        return False
+    return datetime.now() < datetime.fromisoformat(row["expires_at"])
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -116,20 +180,34 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "👋 *Bienvenido al Bot OTP de HeavyHitters!*\n\nActiva tu plan con una key para comenzar:",
             parse_mode="Markdown", reply_markup=menu_sin_key())
 
+async def cmd_genkey(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.id != ADMIN_CHAT_ID:
+        await update.message.reply_text("❌ Sin permiso.")
+        return
+    planes = {"1dia": (1, "1 Día", "$30"), "3dias": (3, "3 Días", "$70"), "semana": (7, "1 Semana", "$100"), "mes": (30, "1 Mes", "$300")}
+    if not context.args or context.args[0].lower() not in planes:
+        await update.message.reply_text("⚠️ Uso:\n`/genkey 1dia`\n`/genkey 3dias`\n`/genkey semana`\n`/genkey mes`", parse_mode="Markdown")
+        return
+    days, plan_name, precio = planes[context.args[0].lower()]
+    key = generate_key(plan_name, days)
+    await update.message.reply_text(
+        f"✅ *Key Generada*\n━━━━━━━━━━━━━\n🔑 `{key}`\n📋 Plan: *{plan_name}*\n💰 Precio: *{precio}*\n\nEnvíale esta key al cliente.",
+        parse_mode="Markdown")
+
 async def cmd_redeem(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if not context.args:
         await update.message.reply_text("⚠️ Uso: `/redeem HVY-XXXX-XXXX-XXXX`", parse_mode="Markdown")
         return
     key = context.args[0].upper().strip()
-    # Por ahora cualquier key que empiece con HVY- activa el acceso
-    if key.startswith("HVY-"):
-        usuarios_activos.add(chat_id)
-        await update.message.reply_text(
-            "🎉 *¡Key activada!*\nYa puedes usar el bot.",
-            parse_mode="Markdown", reply_markup=menu_con_key())
-    else:
-        await update.message.reply_text("❌ Key inválida. Verifica que la escribiste correctamente.")
+    result, error = redeem_key(key, chat_id)
+    if error:
+        await update.message.reply_text(error)
+        return
+    expires = datetime.fromisoformat(result["expires_at"])
+    await update.message.reply_text(
+        f"🎉 *¡Key activada!*\n📋 Plan: *{result['plan']}*\n📅 Expira: *{expires.strftime('%d/%m/%Y')}*\n\nYa puedes usar el bot.",
+        parse_mode="Markdown", reply_markup=menu_con_key())
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
@@ -143,11 +221,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get("esperando_key"):
         context.user_data.pop("esperando_key")
         key = texto.upper().strip()
-        if key.startswith("HVY-"):
-            usuarios_activos.add(chat_id)
-            await update.message.reply_text("🎉 *¡Key activada!*\nYa puedes usar el bot.", parse_mode="Markdown", reply_markup=menu_con_key())
+        result, error = redeem_key(key, chat_id)
+        if error:
+            await update.message.reply_text(error)
         else:
-            await update.message.reply_text("❌ Key inválida.")
+            expires = datetime.fromisoformat(result["expires_at"])
+            await update.message.reply_text(
+                f"🎉 *¡Key activada!*\n📋 {result['plan']}\n📅 Expira: {expires.strftime('%d/%m/%Y')}",
+                parse_mode="Markdown", reply_markup=menu_con_key())
         return
 
     if texto == "📞 Soporte":
@@ -215,9 +296,11 @@ def run_flask():
     flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), use_reloader=False)
 
 def main():
+    init_db()
     threading.Thread(target=run_flask, daemon=True).start()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("genkey", cmd_genkey))
     app.add_handler(CommandHandler("redeem", cmd_redeem))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     log.info("✅ Bot activo")
