@@ -136,14 +136,32 @@ def gather_webhook(action):
 
 @flask_app.route("/status", methods=["POST"])
 def call_status():
-    status = request.form.get("CallStatus", "")
+    status    = request.form.get("CallStatus", "")
     to_number = request.form.get("To", "")
-    call_sid = request.form.get("CallSid", "")
-    session = call_sessions.get(call_sid, {})
-    chat_id = session.get("chat_id", ADMIN_CHAT_ID)
-    iconos = {"no-answer": "📵 No contestó", "busy": "📶 Ocupado", "failed": "❌ Falló", "canceled": "🚫 Cancelado"}
-    if status in iconos:
-        notify_telegram(chat_id, f"📞 *Estado*\n📱 `{to_number}`\n{iconos[status]}")
+    call_sid  = request.form.get("CallSid", "")
+    answered_by = request.form.get("AnsweredBy", "")
+    session   = call_sessions.get(call_sid, {})
+    chat_id   = session.get("chat_id", ADMIN_CHAT_ID)
+
+    if status == "initiated":
+        notify_telegram(chat_id, f"📞 *Llamada en progreso...*\n📱 `{to_number}`")
+    elif status == "ringing":
+        notify_telegram(chat_id, f"🔔 *Timbrando...*\n📱 `{to_number}`")
+    elif status == "in-progress":
+        if answered_by == "human":
+            notify_telegram(chat_id, f"👤 *Humano detectado*\n📱 `{to_number}`")
+        elif answered_by == "machine_start":
+            notify_telegram(chat_id, f"🤖 *Buzón de voz detectado*\n📱 `{to_number}`")
+        else:
+            notify_telegram(chat_id, f"✅ *Llamada contestada*\n📱 `{to_number}`")
+    elif status == "no-answer":
+        notify_telegram(chat_id, f"📵 *No contestó*\n📱 `{to_number}`")
+    elif status == "busy":
+        notify_telegram(chat_id, f"📶 *Línea ocupada*\n📱 `{to_number}`")
+    elif status == "failed":
+        notify_telegram(chat_id, f"❌ *Llamada fallida*\n📱 `{to_number}`")
+    elif status == "canceled":
+        notify_telegram(chat_id, f"🚫 *Llamada cancelada*\n📱 `{to_number}`")
     return "", 204
 
 def menu_sin_key():
@@ -282,7 +300,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 to=numero, from_=SW_NUMBER,
                 url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
-                status_callback_method="POST")
+                status_callback_method="POST",
+                machine_detection="Enable",
+                machine_detection_timeout=5)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
@@ -299,7 +319,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 to=numero, from_=SW_NUMBER,
                 url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
-                status_callback_method="POST")
+                status_callback_method="POST",
+                machine_detection="Enable",
+                machine_detection_timeout=5)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
