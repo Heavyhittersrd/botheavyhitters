@@ -110,63 +110,29 @@ def notify_telegram(chat_id, texto):
     except Exception as e:
         log.error(e)
 
-@flask_app.route("/swml/<action>", methods=["POST", "GET"])
-def swml_webhook(action):
-    """SWML endpoint - detecta humano/maquina antes de reproducir el IVR"""
-    swml = {
-        "version": "1.0.0",
-        "sections": {
-            "main": [
-                {
-                    "detect_machine": {
-                        "status_url": f"{WEBHOOK_BASE_URL}/detect/{action}",
-                        "timeout": 10,
-                        "wait": False
-                    }
-                },
-                {
-                    "execute": {
-                        "dest": f"{WEBHOOK_BASE_URL}/voice/{action}"
-                    }
-                }
-            ]
-        }
-    }
-    return Response(str(swml).replace("'", '"'), mimetype="application/json")
-
-@flask_app.route("/detect/<action>", methods=["POST"])
-def detect_webhook(action):
-    """Recibe el resultado de detect_machine de SignalWire"""
-    import json as json_lib
-    data = request.get_json(silent=True) or {}
-    params = data.get("params", {})
-    detect = params.get("detect", {})
-    detect_params = detect.get("params", {})
-    event = detect_params.get("event", "").upper()
-    call_id = params.get("call_id", "")
-
-    session = call_sessions.get(call_id, {})
-    chat_id = session.get("chat_id", ADMIN_CHAT_ID)
-    to_number = session.get("phone", "")
-
-    log.info(f"Detect event: {event} | call_id: {call_id}")
-
-    if event == "HUMAN":
-        notify_telegram(chat_id, f"👤 *Humano detectado*\n📱 `{to_number}`")
-    elif event == "MACHINE":
-        notify_telegram(chat_id, f"🤖 *Buzón de voz detectado*\n📱 `{to_number}`")
-
-    return "", 204
-
 @flask_app.route("/voice/<action>", methods=["POST"])
 def voice_webhook(action):
-    call_sid  = request.form.get("CallSid", "")
-    to_number = request.form.get("To", "")
-    session   = call_sessions.get(call_sid, {})
-    chat_id   = session.get("chat_id", ADMIN_CHAT_ID)
+    call_sid    = request.form.get("CallSid", "")
+    to_number   = request.form.get("To", "")
+    answered_by = request.form.get("AnsweredBy", "")
+    session     = call_sessions.get(call_sid, {})
+    chat_id     = session.get("chat_id", ADMIN_CHAT_ID)
 
     response = VoiceResponse()
-    response.pause(length=2)
+
+    # Buzón de voz — colgar
+    if answered_by in ["machine_start", "machine_end_beep", "machine_end_silence", "machine_end_other", "fax"]:
+        notify_telegram(chat_id, f"🤖 *Buzón de voz detectado*\n📱 `{to_number}`\n📴 Colgando...")
+        response.hangup()
+        return Response(str(response), mimetype="text/xml")
+
+    # Humano — reproducir mensaje
+    if answered_by == "human":
+        notify_telegram(chat_id, f"👤 *Humano detectado*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
+    else:
+        notify_telegram(chat_id, f"✅ *Llamada contestada*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
+
+    response.pause(length=1)
     gather = Gather(num_digits=1, action=f"{WEBHOOK_BASE_URL}/gather/{action}", method="POST", timeout=15)
     gather.say(IVR_MENSAJES.get(action, "Marque 1 o 2."), language="es-MX", rate="85%")
     response.append(gather)
@@ -356,9 +322,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"📞 Llamando a `{numero}`...", parse_mode="Markdown")
             call = sw_client.calls.create(
                 to=numero, from_=SW_NUMBER,
-                url=f"{WEBHOOK_BASE_URL}/swml/{accion}",
+                url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
-                status_callback_method="POST")
+                status_callback_method="POST",
+                machine_detection="DetectMessageEnd",
+                machine_detection_timeout=30)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
@@ -373,9 +341,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"📞 Llamando a `{numero}`...", parse_mode="Markdown")
             call = sw_client.calls.create(
                 to=numero, from_=SW_NUMBER,
-                url=f"{WEBHOOK_BASE_URL}/swml/{accion}",
+                url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
-                status_callback_method="POST")
+                status_callback_method="POST",
+                machine_detection="DetectMessageEnd",
+                machine_detection_timeout=30)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
