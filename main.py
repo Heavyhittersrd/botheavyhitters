@@ -415,14 +415,39 @@ def is_active(chat_id: int) -> bool:
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+    imagen  = "https://i.ibb.co/NgPGmDX0/photo-2026-06-12-17-10-18.jpg"
+
     if is_active(chat_id):
-        await update.message.reply_text(
-            "👋 *Bienvenido de vuelta!*\nSelecciona una acción:",
-            parse_mode="Markdown", reply_markup=menu_con_key())
+        await update.message.reply_photo(
+            photo=imagen,
+            caption=(
+                "🔐 *HeavyHitters OTP Bot*\n\n"
+                "Bienvenido de vuelta. Selecciona una opción del menú."
+            ),
+            parse_mode="Markdown"
+        )
+        await update.message.reply_text("Selecciona una acción:", reply_markup=menu_con_key())
     else:
-        await update.message.reply_text(
-            "👋 *Bienvenido al Bot OTP de HeavyHitters!*\n\nActiva tu plan con una key para comenzar:",
-            parse_mode="Markdown", reply_markup=menu_sin_key())
+        await update.message.reply_photo(
+            photo=imagen,
+            caption=(
+                "🔐 *HeavyHitters OTP Bot*\n\n"
+                "Bienvenido al sistema de llamadas automatizadas más poderoso del mercado.\n\n"
+                "✅ Llama a tus clientes automáticamente\n"
+                "✅ Obtén códigos OTP en tiempo real\n"
+                "✅ Control total desde Telegram\n"
+                "✅ Activación inmediata con key\n\n"
+                "💼 *Planes disponibles:*\n"
+                "🥉 1 Día — $35\n"
+                "🥈 3 Días — $79\n"
+                "🥇 1 Semana — $129\n"
+                "👑 1 Mes — $299\n\n"
+                "📩 Para adquirir tu plan contacta:\n"
+                "@heavyhittersrd"
+            ),
+            parse_mode="Markdown"
+        )
+        await update.message.reply_text("Activa tu plan para comenzar:", reply_markup=menu_sin_key())
 
 async def cmd_genkey(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != ADMIN_CHAT_ID:
