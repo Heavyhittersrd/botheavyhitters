@@ -120,11 +120,11 @@ def voice_webhook(action):
     notify_telegram(chat_id, f"👤 *Humano detectado*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
 
     response = VoiceResponse()
-    response.pause(length=1)
-    gather = Gather(num_digits=1, action=f"{WEBHOOK_BASE_URL}/gather/{action}", method="POST", timeout=10)
-    gather.say(IVR_MENSAJES.get(action, "Marque 1 o 2."), language="es-MX")
+    response.pause(length=2)
+    gather = Gather(num_digits=1, action=f"{WEBHOOK_BASE_URL}/gather/{action}", method="POST", timeout=15)
+    gather.say(IVR_MENSAJES.get(action, "Marque 1 o 2."), language="es-MX", rate="85%")
     response.append(gather)
-    response.say("No recibimos respuesta. Hasta luego.", language="es-MX")
+    response.say("No recibimos respuesta. Hasta luego.", language="es-MX", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
 
