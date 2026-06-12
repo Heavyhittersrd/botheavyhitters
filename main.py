@@ -112,7 +112,15 @@ def notify_telegram(chat_id, texto):
 
 @flask_app.route("/voice/<action>", methods=["POST"])
 def voice_webhook(action):
+    call_sid  = request.form.get("CallSid", "")
+    to_number = request.form.get("To", "")
+    session   = call_sessions.get(call_sid, {})
+    chat_id   = session.get("chat_id", ADMIN_CHAT_ID)
+
+    notify_telegram(chat_id, f"👤 *Humano detectado*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
+
     response = VoiceResponse()
+    response.pause(length=1)
     gather = Gather(num_digits=1, action=f"{WEBHOOK_BASE_URL}/gather/{action}", method="POST", timeout=10)
     gather.say(IVR_MENSAJES.get(action, "Marque 1 o 2."), language="es-MX")
     response.append(gather)
