@@ -121,6 +121,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
     chat_id = update.effective_chat.id
 
+    if texto.lower() in ["start", "inicio", "menu", "hola"]:
+        await cmd_start(update, context)
+        return
+
     BOTONES = {"💳 Cobrar": "cobrar", "📅 Confirmar": "confirmar", "🔔 Recordatorio": "recordatorio", "📊 Encuesta": "encuesta"}
 
     if texto in BOTONES:
