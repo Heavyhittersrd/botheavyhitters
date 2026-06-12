@@ -325,8 +325,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
                 status_callback_method="POST",
-                machine_detection="DetectMessageEnd",
-                machine_detection_timeout=30)
+                machine_detection="Enable",
+                machine_detection_timeout=5)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
@@ -344,8 +344,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
                 status_callback_method="POST",
-                machine_detection="DetectMessageEnd",
-                machine_detection_timeout=30)
+                machine_detection="Enable",
+                machine_detection_timeout=5)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
