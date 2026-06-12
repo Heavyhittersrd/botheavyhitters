@@ -5,8 +5,8 @@ import requests as req
 from flask import Flask, request, Response
 from signalwire.rest import Client as SignalWireClient
 from signalwire.voice_response import VoiceResponse, Gather
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN   = os.environ["TELEGRAM_TOKEN"]
 SW_PROJECT_ID    = os.environ["SW_PROJECT_ID"]
@@ -20,6 +20,10 @@ sw_client = SignalWireClient(SW_PROJECT_ID, SW_AUTH_TOKEN, signalwire_space_url=
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 call_sessions = {}
+
+# usuarios activos en memoria (temporal, sin base de datos)
+# { chat_id: True }
+usuarios_activos = set()
 
 IVR_MENSAJES = {
     "cobrar": "Hola, le llamamos de parte de nuestra empresa. Usted tiene una factura pendiente. Si desea pagar ahora marque 1. Para hablar con un agente marque 2. Para escuchar el monto marque 3.",
@@ -85,23 +89,74 @@ def call_status():
         notify_telegram(chat_id, f"📞 *Estado*\n📱 `{to_number}`\n{iconos[status]}")
     return "", 204
 
-def menu():
+def menu_sin_key():
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("🔑 Redeem Key")],
+        [KeyboardButton("📞 Soporte")],
+    ], resize_keyboard=True)
+
+def menu_con_key():
     return ReplyKeyboardMarkup([
         [KeyboardButton("💳 Cobrar"), KeyboardButton("📅 Confirmar")],
         [KeyboardButton("🔔 Recordatorio"), KeyboardButton("📊 Encuesta")],
         [KeyboardButton("🛒 Comprar Plan"), KeyboardButton("📞 Soporte")],
     ], resize_keyboard=True)
 
+def is_active(chat_id):
+    return chat_id == ADMIN_CHAT_ID or chat_id in usuarios_activos
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 *Bot de Llamadas HeavyHitters*\n\nSelecciona una acción:",
-        parse_mode="Markdown",
-        reply_markup=menu()
-    )
+    chat_id = update.effective_chat.id
+    if is_active(chat_id):
+        await update.message.reply_text(
+            "👋 *Bienvenido de vuelta!*\nSelecciona una acción:",
+            parse_mode="Markdown", reply_markup=menu_con_key())
+    else:
+        await update.message.reply_text(
+            "👋 *Bienvenido al Bot OTP de HeavyHitters!*\n\nActiva tu plan con una key para comenzar:",
+            parse_mode="Markdown", reply_markup=menu_sin_key())
+
+async def cmd_redeem(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    if not context.args:
+        await update.message.reply_text("⚠️ Uso: `/redeem HVY-XXXX-XXXX-XXXX`", parse_mode="Markdown")
+        return
+    key = context.args[0].upper().strip()
+    # Por ahora cualquier key que empiece con HVY- activa el acceso
+    if key.startswith("HVY-"):
+        usuarios_activos.add(chat_id)
+        await update.message.reply_text(
+            "🎉 *¡Key activada!*\nYa puedes usar el bot.",
+            parse_mode="Markdown", reply_markup=menu_con_key())
+    else:
+        await update.message.reply_text("❌ Key inválida. Verifica que la escribiste correctamente.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
     chat_id = update.effective_chat.id
+
+    if texto == "🔑 Redeem Key":
+        context.user_data["esperando_key"] = True
+        await update.message.reply_text("🔑 Escribe tu key:\n`HVY-XXXX-XXXX-XXXX`", parse_mode="Markdown")
+        return
+
+    if context.user_data.get("esperando_key"):
+        context.user_data.pop("esperando_key")
+        key = texto.upper().strip()
+        if key.startswith("HVY-"):
+            usuarios_activos.add(chat_id)
+            await update.message.reply_text("🎉 *¡Key activada!*\nYa puedes usar el bot.", parse_mode="Markdown", reply_markup=menu_con_key())
+        else:
+            await update.message.reply_text("❌ Key inválida.")
+        return
+
+    if texto == "📞 Soporte":
+        await update.message.reply_text("📞 Contacta: @heavyhittersrd")
+        return
+
+    if not is_active(chat_id):
+        await update.message.reply_text("❌ Necesitas activar una key primero.", reply_markup=menu_sin_key())
+        return
 
     BOTONES = {
         "💳 Cobrar": "cobrar",
@@ -112,17 +167,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if texto in BOTONES:
         context.user_data["accion"] = BOTONES[texto]
-        await update.message.reply_text(f"📱 Escribe el número a llamar:\n`+13023451233`", parse_mode="Markdown")
+        await update.message.reply_text("📱 Escribe el número a llamar:\n`+13023451233`", parse_mode="Markdown")
         return
 
     if texto == "🛒 Comprar Plan":
         await update.message.reply_text(
             "💼 *Planes*\n🥉 1 Día — $30\n🥈 3 Días — $70\n🥇 1 Semana — $100\n👑 1 Mes — $300\n\nContacta: @heavyhittersrd",
             parse_mode="Markdown")
-        return
-
-    if texto == "📞 Soporte":
-        await update.message.reply_text("📞 Contacta: @heavyhittersrd")
         return
 
     if "accion" in context.user_data:
@@ -136,7 +187,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
                 status_callback_method="POST")
             call_sessions[call.sid] = {"chat_id": chat_id}
-            await update.message.reply_text(f"✅ Llamada iniciada", parse_mode="Markdown")
+            await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
             await update.message.reply_text(f"❌ Error: `{e}`", parse_mode="Markdown")
         return
@@ -153,12 +204,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
                 status_callback_method="POST")
             call_sessions[call.sid] = {"chat_id": chat_id}
-            await update.message.reply_text(f"✅ Llamada iniciada", parse_mode="Markdown")
+            await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
             await update.message.reply_text(f"❌ Error: `{e}`", parse_mode="Markdown")
         return
 
-    await update.message.reply_text("Usa el menú o escribe: `COBRAR +13023451233`", parse_mode="Markdown", reply_markup=menu())
+    await update.message.reply_text("Usa el menú.", reply_markup=menu_con_key() if is_active(chat_id) else menu_sin_key())
 
 def run_flask():
     flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), use_reloader=False)
@@ -167,6 +218,7 @@ def main():
     threading.Thread(target=run_flask, daemon=True).start()
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("redeem", cmd_redeem))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     log.info("✅ Bot activo")
     app.run_polling(drop_pending_updates=True)
