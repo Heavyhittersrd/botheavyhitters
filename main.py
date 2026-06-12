@@ -417,6 +417,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     # Si está esperando key
+    # Trigger start desde texto
+    if texto.lower() in ["start", "/start", "hola", "inicio", "menu", "menú"]:
+        await cmd_start(update, context)
+        return
+
     if context.user_data.get("esperando_key"):
         context.user_data.pop("esperando_key")
         username = update.effective_user.username or str(chat_id)
