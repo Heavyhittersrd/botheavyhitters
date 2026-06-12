@@ -399,9 +399,7 @@ def menu_sin_key():
 
 def menu_con_key():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("💳 Cobrar"), KeyboardButton("📅 Confirmar")],
-        [KeyboardButton("🔔 Recordatorio"), KeyboardButton("📊 Encuesta")],
-        [KeyboardButton("🏢 Llamar como Empresa")],
+        [KeyboardButton("🔐 Obtener OTP")],
         [KeyboardButton("🛒 Comprar Plan"), KeyboardButton("📞 Soporte")],
     ], resize_keyboard=True)
 
@@ -500,19 +498,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Necesitas activar una key primero.", reply_markup=menu_sin_key())
         return
 
-    BOTONES = {
-        "💳 Cobrar": "cobrar",
-        "📅 Confirmar": "confirmar",
-        "🔔 Recordatorio": "recordatorio",
-        "📊 Encuesta": "encuesta"
-    }
-
-    if texto in BOTONES:
-        context.user_data["accion"] = BOTONES[texto]
-        await update.message.reply_text("📱 Escribe el número a llamar:\n`+13023451233`", parse_mode="Markdown")
-        return
-
-    if texto == "🏢 Llamar como Empresa":
+    if texto == "🔐 Obtener OTP":
         keyboard = [
             [InlineKeyboardButton("💰 PayPal", callback_data="empresa|paypal"),
              InlineKeyboardButton("🛍️ Amazon", callback_data="empresa|amazon")],
