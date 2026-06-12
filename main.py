@@ -149,6 +149,7 @@ def call_status():
 def menu_sin_key():
     return ReplyKeyboardMarkup([
         [KeyboardButton("🔑 Redeem Key")],
+        [KeyboardButton("💼 Ver Planes")],
         [KeyboardButton("📞 Soporte")],
     ], resize_keyboard=True)
 
@@ -229,6 +230,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 f"🎉 *¡Key activada!*\n📋 {result['plan']}\n📅 Expira: {expires.strftime('%d/%m/%Y')}",
                 parse_mode="Markdown", reply_markup=menu_con_key())
+        return
+
+    if texto == "💼 Ver Planes":
+        await update.message.reply_text(
+            "💼 *Planes HeavyHitters OTP*\n"
+            "━━━━━━━━━━━━━━━━━\n\n"
+            "🥉 *1 Día* — $35\n"
+            "🥈 *3 Días* — $79\n"
+            "🥇 *1 Semana* — $129\n"
+            "👑 *1 Mes* — $299\n\n"
+            "✅ Llamadas ilimitadas incluidas\n"
+            "✅ Cobros, confirmaciones, recordatorios y más\n"
+            "✅ Activación inmediata con key\n\n"
+            "📩 Para comprar contacta: @heavyhittersrd",
+            parse_mode="Markdown")
         return
 
     if texto == "📞 Soporte":
