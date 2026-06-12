@@ -117,7 +117,7 @@ def voice_webhook(action):
     session   = call_sessions.get(call_sid, {})
     chat_id   = session.get("chat_id", ADMIN_CHAT_ID)
 
-    notify_telegram(chat_id, f"👤 *Humano detectado*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
+    notify_telegram(chat_id, f"👤 *Llamada contestada*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
 
     response = VoiceResponse()
     response.pause(length=2)
@@ -312,7 +312,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 to=numero, from_=SW_NUMBER,
                 url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
-                status_callback_method="POST")
+                status_callback_method="POST",
+                machine_detection="Enable",
+                machine_detection_timeout=3)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
@@ -329,7 +331,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 to=numero, from_=SW_NUMBER,
                 url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
-                status_callback_method="POST")
+                status_callback_method="POST",
+                machine_detection="Enable",
+                machine_detection_timeout=3)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
