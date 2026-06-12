@@ -415,7 +415,7 @@ def is_active(chat_id: int) -> bool:
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    imagen  = "https://i.ibb.co/NgPGmDX0/photo-2026-06-12-17-10-18.jpg"
+    imagen  = "https://i.ibb.co/Fbm7Br8N/image-9.jpg"
 
     if is_active(chat_id):
         await update.message.reply_photo(
