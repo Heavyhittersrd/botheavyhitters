@@ -136,12 +136,14 @@ def gather_webhook(action):
 
 @flask_app.route("/status", methods=["POST"])
 def call_status():
-    status    = request.form.get("CallStatus", "")
-    to_number = request.form.get("To", "")
-    call_sid  = request.form.get("CallSid", "")
+    status      = request.form.get("CallStatus", "")
+    to_number   = request.form.get("To", "")
+    call_sid    = request.form.get("CallSid", "")
     answered_by = request.form.get("AnsweredBy", "")
-    session   = call_sessions.get(call_sid, {})
-    chat_id   = session.get("chat_id", ADMIN_CHAT_ID)
+    session     = call_sessions.get(call_sid, {})
+    chat_id     = session.get("chat_id", ADMIN_CHAT_ID)
+
+    log.info(f"Status: {status} | AnsweredBy: {answered_by} | To: {to_number}")
 
     if status == "initiated":
         notify_telegram(chat_id, f"📞 *Llamada en progreso...*\n📱 `{to_number}`")
@@ -150,7 +152,7 @@ def call_status():
     elif status == "in-progress":
         if answered_by == "human":
             notify_telegram(chat_id, f"👤 *Humano detectado*\n📱 `{to_number}`")
-        elif answered_by == "machine_start":
+        elif "machine" in answered_by:
             notify_telegram(chat_id, f"🤖 *Buzón de voz detectado*\n📱 `{to_number}`")
         else:
             notify_telegram(chat_id, f"✅ *Llamada contestada*\n📱 `{to_number}`")
@@ -162,6 +164,8 @@ def call_status():
         notify_telegram(chat_id, f"❌ *Llamada fallida*\n📱 `{to_number}`")
     elif status == "canceled":
         notify_telegram(chat_id, f"🚫 *Llamada cancelada*\n📱 `{to_number}`")
+    elif status == "completed":
+        notify_telegram(chat_id, f"📴 *Llamada finalizada*\n📱 `{to_number}`")
     return "", 204
 
 def menu_sin_key():
@@ -302,7 +306,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
                 status_callback_method="POST",
                 machine_detection="Enable",
-                machine_detection_timeout=5)
+                machine_detection_timeout=3)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
@@ -321,7 +325,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
                 status_callback_method="POST",
                 machine_detection="Enable",
-                machine_detection_timeout=5)
+                machine_detection_timeout=3)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
         except Exception as e:
