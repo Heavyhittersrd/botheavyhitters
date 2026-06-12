@@ -5,7 +5,7 @@ import requests as req
 from flask import Flask, request, Response
 from signalwire.rest import Client as SignalWireClient
 from signalwire.voice_response import VoiceResponse, Gather
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, filters, ContextTypes
@@ -88,10 +88,18 @@ def call_status():
         notify_telegram(chat_id, f"📞 *Estado*\n📱 `{to_number}`\n{iconos[status]}")
     return "", 204
 
+
+def main_keyboard():
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("💳 Cobrar"), KeyboardButton("📅 Confirmar")],
+        [KeyboardButton("🔔 Recordatorio"), KeyboardButton("📊 Encuesta")],
+        [KeyboardButton("🛒 Comprar Plan"), KeyboardButton("📞 Soporte")],
+    ], resize_keyboard=True, persistent=True)
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 *Bot de Llamadas HeavyHitters*\n\nEscribe:\n`COBRAR +13023451233`\n`CONFIRMAR +13023451233`\n`RECORDATORIO +13023451233`\n`ENCUESTA +13023451233`\n\nO usa /llamar",
-        parse_mode="Markdown")
+        "👋 *Bot de Llamadas HeavyHitters*\n\nSelecciona una acción del menú:",
+        parse_mode="Markdown", reply_markup=main_keyboard())
 
 async def cmd_llamar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -112,6 +120,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.strip()
     chat_id = update.effective_chat.id
+
+    BOTONES = {"💳 Cobrar": "cobrar", "📅 Confirmar": "confirmar", "🔔 Recordatorio": "recordatorio", "📊 Encuesta": "encuesta"}
+
+    if texto in BOTONES:
+        context.user_data["accion_pendiente"] = BOTONES[texto]
+        await update.message.reply_text(f"✅ *{texto}*\n\n📱 Escribe el número a llamar:\n`+13023451233`", parse_mode="Markdown")
+        return
+
+    if texto == "🛒 Comprar Plan":
+        await update.message.reply_text(
+            "💼 *Planes Disponibles*\n━━━━━━━━━━━━━\n🥉 1 Día — $30\n🥈 3 Días — $70\n🥇 1 Semana — $100\n👑 1 Mes — $300\n\n📞 Llamadas ilimitadas\n\nContacta: @heavyhittersrd",
+            parse_mode="Markdown")
+        return
+
+    if texto == "📞 Soporte":
+        await update.message.reply_text("📞 *Soporte HeavyHitters*\n\nContacta a nuestro equipo:\n@heavyhittersrd", parse_mode="Markdown")
+        return
+
     partes = texto.upper().split()
     accion = None
     numero = None
