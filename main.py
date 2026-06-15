@@ -150,10 +150,7 @@ def voice_webhook(action):
 
     # Usar mensaje de empresa si aplica
     if action in EMPRESAS:
-        msg = EMPRESAS[action]["mensaje"]
-        # Agregar pausas naturales con SSML
-        ssml = f'<speak><break time="500ms"/>{msg}</speak>'
-        gather.say(ssml, language="en-US")
+        gather.say(EMPRESAS[action]["mensaje"], language="en-US")
     else:
         gather.say(IVR_MENSAJES.get(action, "Press 1 or 2."), language="es-MX")
 
