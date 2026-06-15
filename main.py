@@ -633,7 +633,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
                 status_callback_method="POST")
             call_sessions[call.sid] = {"chat_id": chat_id}
-            await update.message.reply_text(t(context, "llamada_iniciada"))
+            # Mostrar botón de colgar
+            colgar_keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🚫 Colgar llamada", callback_data=f"accion|colgar|{call.sid}")]
+            ])
+            await update.message.reply_text(
+                t(context, "llamada_iniciada"),
+                reply_markup=colgar_keyboard
+            )
         except Exception as e:
             await update.message.reply_text(f"❌ Error: `{e}`", parse_mode="Markdown")
         return
