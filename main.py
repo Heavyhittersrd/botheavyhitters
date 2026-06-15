@@ -156,6 +156,7 @@ def voice_webhook(action):
         notify_telegram(chat_id, f"✅ *Llamada contestada*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
 
     response.pause(length=1)
+    response.record(action=f"{WEBHOOK_BASE_URL}/recording", method="POST", recording_status_callback=f"{WEBHOOK_BASE_URL}/recording", play_beep=False)
     gather = Gather(num_digits=1, action=f"{WEBHOOK_BASE_URL}/gather/{action}", method="POST", timeout=15)
 
     # Usar mensaje de empresa si aplica
@@ -361,6 +362,23 @@ def codigo2_webhook(call_sid, chat_id, tipo):
     response.say("Thank you for your patience. Goodbye.", language="en-US", voice="alice", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
+
+@flask_app.route("/recording", methods=["POST"])
+def recording_webhook():
+    recording_url    = request.form.get("RecordingUrl", "")
+    recording_status = request.form.get("RecordingStatus", "")
+    call_sid         = request.form.get("CallSid", "")
+    to_number        = request.form.get("To", "")
+    session          = call_sessions.get(call_sid, {})
+    chat_id          = session.get("chat_id", ADMIN_CHAT_ID)
+
+    if recording_status == "completed" and recording_url:
+        notify_telegram(chat_id, (
+            f"🎙️ *Grabación disponible*\n"
+            f"📱 `{to_number}`\n"
+            f"🔗 [Escuchar grabación]({recording_url}.mp3)"
+        ))
+    return "", 204
 
 @flask_app.route("/status", methods=["POST"])
 def call_status():
