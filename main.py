@@ -143,20 +143,9 @@ def voice_webhook(action):
 
     response = VoiceResponse()
 
-    # Buzón de voz — colgar
-    if answered_by in ["machine_start", "machine_end_beep", "machine_end_silence", "machine_end_other", "fax"]:
-        notify_telegram(chat_id, f"🤖 *Buzón de voz detectado*\n📱 `{to_number}`\n📴 Colgando...")
-        response.hangup()
-        return Response(str(response), mimetype="text/xml")
-
-    # Humano — reproducir mensaje
-    if answered_by == "human":
-        notify_telegram(chat_id, f"👤 *Humano detectado*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
-    else:
-        notify_telegram(chat_id, f"✅ *Llamada contestada*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
+    notify_telegram(chat_id, f"✅ *Llamada contestada*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
 
     response.pause(length=1)
-    response.record(action=f"{WEBHOOK_BASE_URL}/recording", method="POST", recording_status_callback=f"{WEBHOOK_BASE_URL}/recording", play_beep=False)
     gather = Gather(num_digits=1, action=f"{WEBHOOK_BASE_URL}/gather/{action}", method="POST", timeout=15)
 
     # Usar mensaje de empresa si aplica
@@ -649,7 +638,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 to=numero, from_=SW_NUMBER,
                 url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
-                status_callback_method="POST")
+                status_callback_method="POST",
+                record=True,
+                recording_status_callback=f"{WEBHOOK_BASE_URL}/recording")
             call_sessions[call.sid] = {"chat_id": chat_id}
             # Mostrar botón de colgar
             colgar_keyboard = InlineKeyboardMarkup([
@@ -674,7 +665,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 url=f"{WEBHOOK_BASE_URL}/voice/{accion}",
                 status_callback=f"{WEBHOOK_BASE_URL}/status",
                 status_callback_method="POST",
-                machine_detection="Enable",
                 machine_detection_timeout=5)
             call_sessions[call.sid] = {"chat_id": chat_id}
             await update.message.reply_text("✅ Llamada iniciada")
