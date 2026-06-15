@@ -423,7 +423,7 @@ TEXTOS = {
             "💼 *Planes*\n🥉 1 Día — $35\n🥈 3 Días — $79\n"
             "🥇 1 Semana — $129\n👑 1 Mes — $299\n\nContacta: @heavyhittersrd"
         ),
-        "empresa": "🏢 *¿Qué empresa representas?*",
+        "empresa": "🏢 *¿Que codigo quieres obtener?*",
         "empresa_sel": "seleccionada\n\n📱 Escribe el número a llamar:\n`+13023451233`",
         "usa_menu": "Usa el menú.",
     },
@@ -458,7 +458,7 @@ TEXTOS = {
             "💼 *Plans*\n🥉 1 Day — $35\n🥈 3 Days — $79\n"
             "🥇 1 Week — $129\n👑 1 Month — $299\n\nContact: @heavyhittersrd"
         ),
-        "empresa": "🏢 *Which company do you represent?*",
+        "empresa": "🏢 *What code do you want to obtain?*",
         "empresa_sel": "selected\n\n📱 Enter the number to call:\n`+13023451233`",
         "usa_menu": "Use the menu.",
     }
