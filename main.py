@@ -145,7 +145,7 @@ def voice_webhook(action):
 
     notify_telegram(chat_id, f"✅ *Llamada contestada*\n📱 `{to_number}`\n🔊 Reproduciendo mensaje...")
 
-    response.pause(length=1)
+    response.pause(length=2)
     gather = Gather(num_digits=1, action=f"{WEBHOOK_BASE_URL}/gather/{action}", method="POST", timeout=15)
 
     # Usar mensaje de empresa si aplica
