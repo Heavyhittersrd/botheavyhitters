@@ -649,10 +649,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=colgar_keyboard
             )
         except Exception as e:
-            await update.message.reply_text(f"❌ Error: `{e}`", parse_mode="Markdown")
-        return
-
-    partes = texto.upper().split()
+            log.error(f"Error creating call: {type(e).__name__}: {e}")
+            await update.message.reply_text(f"❌ Error: `{type(e).__name__}: {e}`", parse_mode="Markdown")
     if len(partes) == 2 and partes[0] in {"COBRAR", "CONFIRMAR", "RECORDATORIO", "ENCUESTA"}:
         accion = partes[0].lower()
         numero = partes[1] if partes[1].startswith("+") else "+" + partes[1]
